@@ -9,7 +9,6 @@ import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import com.github.javaparser.ast.body.MethodDeclaration;
 
 import java.io.*;
 import java.util.*;
@@ -41,18 +40,11 @@ public class Lisa {
     private final Map<String, Boolean> listChecked = new HashMap<>();
 
     @Override
-    public void visit(MethodDeclaration n, Void arg) {
-      listChecked.clear();
-      super.visit(n, arg);
-    }
-
-    @Override
     public void visit(VariableDeclarationExpr n, Void arg) {
       super.visit(n, arg);
       n.getVariables().forEach(v -> {
         if (isListType(v.getType())) {
           listChecked.put(v.getNameAsString(), false);
-          System.out.println("List declared: " + v + " at line " + n.getBegin().get().line);
         }
       });
     }
@@ -62,22 +54,16 @@ public class Lisa {
       super.visit(n, arg);
       n.getScope().ifPresent(scope -> {
         String variableName = scope.toString();
-        // Check if the variable is a list and if the method call is not 'add' or
-        // 'clear'
         if (listChecked.containsKey(variableName) && !n.getNameAsString().equals("add")
             && !n.getNameAsString().equals("clear")) {
           if (n.getNameAsString().equals("isEmpty") || n.getNameAsString().equals("size")) {
-            // Mark the list as checked if there's an isEmpty or size check within an if
-            // block
             boolean isInIf = isInIfBlock(n);
             listChecked.put(variableName, isInIf);
           } else {
-            // Report usage based on whether there was a preceding check
             boolean wasChecked = listChecked.getOrDefault(variableName, false);
             String message = wasChecked ? "after check" : "without check";
             System.out.println("List " + variableName + " used at line " + n.getBegin().get().line +
                 " within if block: " + isInIfBlock(n) + " " + message);
-            // Assume list may be modified and reset its checked status after usage
             listChecked.put(variableName, false);
           }
         }
